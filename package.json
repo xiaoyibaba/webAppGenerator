@@ -1,0 +1,19 @@
+{
+  "name": "gulpworkflow",
+  "version": "1.0.0",
+  "description": "前端工作流",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CoderWuQiong/GulpWorkFlow.git"
+  },
+  "author": "吴琼",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/CoderWuQiong/GulpWorkFlow/issues"
+  },
+  "homepage": "https://github.com/CoderWuQiong/GulpWorkFlow#readme"
+}
