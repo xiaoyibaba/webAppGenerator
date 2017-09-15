@@ -18,20 +18,21 @@ let zip = require('gulp-gzip')                          //打包
 let runSequence = require('run-sequence')               //顺序执行
 let ftp = require('gulp-ftp')                           //自动部署
 let gulpUtil = require('gulp-util')
+let sass = require('gulp-sass')
 
 
 
 //**************开发环境****************************************************
 
-//less编译
-gulp.task('devLess', () => {
-    gulp.src('src/less/**/*.less')
-    .pipe(less())
+//scss编译
+gulp.task('devScss', () => {
+    gulp.src('src/sass/**/*.scss')
+    .pipe(sass())
     .pipe(gulp.dest('src/css'))
 })
 
 //合并css文件
-gulp.task('devCss', ['devLess'], () => {
+gulp.task('devCss', ['devScss'], () => {
     gulp.src('src/css/*.css')
     .pipe(gulp.dest('test/css/'))
     .pipe(browserSync.reload({stream: true}))
@@ -82,7 +83,7 @@ gulp.task('dev', ['devCss', 'devJs', 'devHtml','devImg','devLib', 'devFont'], ()
     });
     // 我们使用gulp的文件监听功能，来实时编译修改过后的文件
     gulp.watch('src/js/**/*.js', ['devJs']);
-    gulp.watch('src/less/**/*.less', ['devLess']);
+    gulp.watch('src/sass/**/*.scss', ['devScss']);
     gulp.watch('src/css/**/*.css', ['devCss']);
     gulp.watch('src/*.html', ['devHtml']);
     gulp.watch('src/fonts/**', ['devFont']);
@@ -100,9 +101,9 @@ gulp.task('clean', function () {
 })
 
 //less编译, 前缀自动补全， 添加hash值版本号
-gulp.task('buildLess', function () {
-    return gulp.src('src/less/**/*.less')
-    .pipe(less())
+gulp.task('buildSass', function () {
+    return gulp.src('src/sass/**/*.scss')
+    .pipe(sass())
     .pipe(autoprefixer({
         browsers: ['last 2 versions', 'Android >= 4.0'],    //兼容主流浏览器最新两个版本，安卓4.0以上版本
         cascade: true, //是否美化属性值 默认：true 像这样：
@@ -130,22 +131,23 @@ gulp.task('buildJs', function () {
 //图片增加版本号
 gulp.task('buildImg', function () {
     return gulp.src('src/images/**/*.+(ico|png|jpeg|jpg|gif|svg)')
+    .pipe(minImage())
     .pipe(rev())
     .pipe(gulp.dest('dist/images'))
     .pipe(rev.manifest())
     .pipe(gulp.dest('rev/images'))
 })
 
-//iconfont
+//font
 gulp.task('buildFont', function () {
-    gulp.src('src/font/**/*')
-        .pipe(gulp.dest('dist/font'))
+    return gulp.src('src/font/**/*')
+    .pipe(gulp.dest('dist/font'))
 });
 
 //lib
 gulp.task('buildLib', function () {
-    gulp.src('src/lib/**/*')
-        .pipe(gulp.dest('dist/lib'))
+    return gulp.src('src/lib/**/*')
+    .pipe(gulp.dest('dist/lib'))
 });
 
 //html内重新引入带版本号的css js文件,并压缩html
@@ -160,7 +162,7 @@ gulp.task('version', function () {
 gulp.task('build', function (cb) {
     runSequence(
         'clean',
-        ['buildLess', 'buildJs', 'buildImg'],
+        ['buildSass', 'buildJs', 'buildImg'],
         'buildFont',
         'buildLib',
         'version',
