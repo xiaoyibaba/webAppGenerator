@@ -1,183 +1,159 @@
-let gulp = require('gulp')
-let browserSync = require('browser-sync').create()      //服务监听
-let babel = require('gulp-babel')                       //es6 - es5
-let less = require('gulp-less')                         //less编译
-let minHtml = require('gulp-minify-html')               //压缩html
-let minCss = require('gulp-minify-css')                 //压缩css
-let minJs = require('gulp-uglify')                      //压缩js
-let minImage = require('gulp-imagemin')                 //压缩图片
-let autoprefixer = require('gulp-autoprefixer')         //css自动补全
-let clean = require('gulp-clean')                       //文件清除
-//let jsHint = require('gulp-jshint')                     //js检查
-let rename = require('gulp-rename')                     //文件重命名
-let rev = require('gulp-rev')                           //添加hash
-let revCollector = require('gulp-rev-collector')         //替换html中的js,css文件 刷新缓存
-let delLog = require('gulp-strip-debug')                //清楚jsconsole.log
-let concat = require('gulp-concat')                     //合并文件
-let zip = require('gulp-gzip')                          //打包
-let runSequence = require('run-sequence')               //顺序执行
-let ftp = require('gulp-ftp')                           //自动部署
-let gulpUtil = require('gulp-util')
-let sass = require('gulp-sass')
+// 引入依赖
+const gulp = require('gulp');
+const browserSync = require('browser-sync').create();
+const reload = browserSync.reload;
+const runSequence = require('gulp-sequence').use(gulp);
+const rev = require('gulp-rev');  //添加hash值
 
+// 项目的目录结构
+const dirs = {
+  dist:'./dist/',
+  rev: './rev/',
+  src: './src/',
+  html: './src/html/',
+  css: './src/css/',
+  less: './src/less/',
+  js: './src/js/',
+  img: './src/img/',
+  lib: './src/lib',
+  font: './src/font'
+}
 
+// 要处理的文件
+const files = {
+  htmlFiles: './src/**/*.html',
+  lessFiles: './src/less/**/*.less',
+  cssFiles: './src/css/**/*.css',
+  jsFiles: './src/js/**/*.js',
+  imgFiles: './src/img/**/*',
+  jsonFiles: './rev/**/*.json'
+}
 
-//**************开发环境****************************************************
+// ------------------------ 开发环境  -----------------------------
 
-//scss编译
-gulp.task('devScss', () => {
-    gulp.src('src/sass/**/*.scss')
-    .pipe(sass())
-    .pipe(gulp.dest('src/css'))
+// 生成项目目录
+gulp.task('init', () => {
+  const mkdirp = require('mkdirp');
+  for(let i in dirs) {
+    mkdirp(dirs[i], err => {
+      err ? console.log(err) : console.log('mkdir--->' + dirs[i]);
+    })
+  }
 })
 
-//合并css文件
-gulp.task('devCss', ['devScss'], () => {
-    gulp.src('src/css/*.css')
-    .pipe(gulp.dest('test/css/'))
-    .pipe(browserSync.reload({stream: true}))
+// 编译less
+gulp.task('less', () => {
+  const less = require('gulp-less');
+  const plumber = require('gulp-plumber');
+  const notify = require('gulp-notify');
+  return gulp.src(files.lessFiles)
+    .pipe(plumber({errorHandler: notify.onError('Error: <%= error.message %>')}))
+    .pipe(less())
+    .pipe(gulp.dest(dirs.css))
+    .pipe(reload({stream: true}))
 })
 
-//js
-gulp.task('devJs', () => {
-    gulp.src('src/js/**/*.js')
-    .pipe(babel({
-        presets: ['es2015']
-    }))
-    .pipe(gulp.dest('test/js/'))
-    .pipe(browserSync.reload({stream: true}))
-})
-
-//html
-gulp.task('devHtml', () => {
-    gulp.src('src/**/*.html')
-    .pipe(gulp.dest('test/'))
-    .pipe(browserSync.reload({stream: true}))
-})
-
-//images
-gulp.task('devImg', () => {
-    gulp.src('src/images/**')
-    .pipe(gulp.dest('test/images/'))
-})
-
-//lib
-gulp.task('devLib', () => {
-    gulp.src('src/lib/**')
-    .pipe(gulp.dest('test/lib/'))
-})
-
-//fonts
-gulp.task('devFont', () => {
-    gulp.src('src/font/**')
-    .pipe(gulp.dest('test/font/'))
-})
-
-//开发构建
-gulp.task('dev', ['devCss', 'devJs', 'devHtml','devImg','devLib', 'devFont'], () => {
-    browserSync.init({
-        server: {
-            baseDir: "test" // 设置服务器的根目录为dist目录
-        },
-        notify: false // 开启静默模式
-    });
-    // 我们使用gulp的文件监听功能，来实时编译修改过后的文件
-    gulp.watch('src/js/**/*.js', ['devJs']);
-    gulp.watch('src/sass/**/*.scss', ['devScss']);
-    gulp.watch('src/css/**/*.css', ['devCss']);
-    gulp.watch('src/*.html', ['devHtml']);
-    gulp.watch('src/fonts/**', ['devFont']);
-    gulp.watch('src/images/**', ['devImg']);
-    gulp.watch('src/lib/**', ['devLib']);
+// 开发环境服务器
+gulp.task('dev', ['less'],()=>{
+  browserSync.init({
+    server: './src'
+  });
+  gulp.watch(files.lessFiles, ['less']);
+  gulp.watch(files.htmlFiles).on('change', reload);
+  gulp.watch(files.jsFiles).on('change', reload);
 });
 
 
+// ------------------------生产环境--------------------------------
 
-/**********************************生产环境**********************************************/
-//清空dist文件夹
-gulp.task('clean', function () {
-    return gulp.src(['dist', 'rev'])
-    .pipe(clean())
+// 清除dist文件夹
+gulp.task('clean', () => {
+  const clean = require('gulp-clean');
+  return gulp.src('./dist/**/*', {read: false})
+    .pipe(clean());
 })
 
-//less编译, 前缀自动补全， 添加hash值版本号
-gulp.task('buildSass', function () {
-    return gulp.src('src/sass/**/*.scss')
-    .pipe(sass())
-    .pipe(autoprefixer({
-        browsers: ['last 2 versions', 'Android >= 4.0'],    //兼容主流浏览器最新两个版本，安卓4.0以上版本
-        cascade: true, //是否美化属性值 默认：true 像这样：
-        remove:true //是否去掉不必要的前缀 默认：true 
-    }))
-    .pipe(minCss())
-    .pipe(rev())
-    .pipe(gulp.dest('dist/css'))
-    .pipe(rev.manifest())//给添加哈希值的文件添加到清单中
-    .pipe(gulp.dest('rev/css'))
+// css-autoprefixer
+gulp.task('autoprefixer', () => {
+  const postcss = require('gulp-postcss');
+  const sourcemaps = require('gulp-sourcemaps');
+  const autoprefixer = require('autoprefixer');
+  return gulp.src(files.cssFiles)
+    .pipe(sourcemaps.init())
+    .pipe(postcss([ autoprefixer({
+      browsers: ['last 2 version', 'Android >= 4.0']
+    }) ]))
+    .pipe(sourcemaps.write('.'))
+    .pipe(gulp.dest(dirs.css))
 })
 
-
-//编译压缩js
-gulp.task('buildJs', function () {
-    return gulp.src('src/js/**/*.js')
-    .pipe(babel())
-    .pipe(minJs())
+// 压缩css
+gulp.task('cssMin', () => {
+  const minifyCss = require('gulp-minify-css');
+  return gulp.src(files.cssFiles)
+    .pipe(minifyCss({}))
     .pipe(rev())
-    .pipe(gulp.dest('dist/js'))
+    .pipe(gulp.dest('./dist/css/'))
     .pipe(rev.manifest())
-    .pipe(gulp.dest('rev/js'))
+    .pipe(gulp.dest('./rev/css'));
 })
 
-//图片增加版本号
-gulp.task('buildImg', function () {
-    return gulp.src('src/images/**/*.+(ico|png|jpeg|jpg|gif|svg)')
-    .pipe(minImage())
+// 压缩合并js
+gulp.task('jsMin', () => {
+  const uglify = require('gulp-uglify');
+  return gulp.src(files.jsFiles)
+    .pipe(uglify())
     .pipe(rev())
-    .pipe(gulp.dest('dist/images'))
+    .pipe(gulp.dest('./dist/js/'))
     .pipe(rev.manifest())
-    .pipe(gulp.dest('rev/images'))
+    .pipe(gulp.dest('./rev/js'));
 })
 
-//font
-gulp.task('buildFont', function () {
-    return gulp.src('src/font/**/*')
-    .pipe(gulp.dest('dist/font'))
-});
+// 压缩图片
+gulp.task('imgMin', () => {
+  const imageMin = require('gulp-imagemin');
+  return gulp.src(files.imgFiles)
+    .pipe(imageMin())
+    .pipe(gulp.dest('./dist/img/'))
+})
 
-//lib
-gulp.task('buildLib', function () {
-    return gulp.src('src/lib/**/*')
-    .pipe(gulp.dest('dist/lib'))
+// lib&font copy to dist
+gulp.task('copyLib', () => {
+  return gulp.src(dirs.lib + '/**/*')
+    .pipe(gulp.dest('./dist/lib/'));
 });
+gulp.task('copyFont', () => {
+  return gulp.src(dirs.font + '/**/*')
+    .pipe(gulp.dest('./dist/font/'));
+})
 
-//html内重新引入带版本号的css js文件,并压缩html
-gulp.task('version', function () {
-    return gulp.src(['rev/**/*.json', 'src/**/*.html'])
+gulp.task('version', () => {
+  const revCollector = require('gulp-rev-collector');
+  const htmlMin = require('gulp-minify-html');
+  return gulp.src([files.jsonFiles, files.htmlFiles])
     .pipe(revCollector())
-    .pipe(minHtml())
-    .pipe(gulp.dest('dist/')) 
+    .pipe(htmlMin())
+    .pipe(gulp.dest('./dist/'));
 })
 
-//build
-gulp.task('build', function (cb) {
-    runSequence(
-        'clean',
-        ['buildSass', 'buildJs', 'buildImg'],
-        'buildFont',
-        'buildLib',
-        'version',
-    cb)
+// 项目生产
+//gulp.task('build', runSequence('clean', 'less', 'autoprefixer', 'cssMin', 'jsMin', 'imgMin', 'copyLib', 'copyFont', 'version'));
+gulp.task('build', (cb) => {
+  runSequence(
+    'clean',
+    ['less', 'autoprefixer', 'cssMin', 'jsMin', 'imgMin'],
+    'copyLib',
+    'copyFont',
+    'version',
+    cb
+  )
 })
 
-//自动部署上线
-gulp.task('upload', function () {
-    gulp.src('dist/**')
-    .pipe(ftp({
-        host: '', //服务器ip
-        port: 22, //端口号
-        user: 'username', //帐号
-        pass: 'password', //密码
-        remotePath: '/' //上传到
-    }))
-    .pipe(gulpUtil.noop())
+// 项目打包
+gulp.task('zip', () => {
+  const zip = require('gulp-zip');
+  return gulp.src('./dist/**/*')
+    .pipe(zip('project.zip'))
+    .pipe(gulp.dest('./'))
 })
+
