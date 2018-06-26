@@ -25,6 +25,12 @@
     https://github.com/Mot-w/webAppGenerator.git
 ```
 
+####    安装依赖
+
+```javascript
+    npm i
+```
+
 ####    初始化项目
 
 ```javascript
