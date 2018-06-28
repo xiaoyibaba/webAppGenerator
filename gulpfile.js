@@ -58,6 +58,7 @@ gulp.task('dev', ['less'],()=>{
   browserSync.init({
     server: './src'
   });
+  gulp.watch(files.lessFiles, ['less'])
   gulp.watch(files.lessFiles).on('change', reload);
   gulp.watch(files.htmlFiles).on('change', reload);
   gulp.watch(files.jsFiles).on('change', reload);
