@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "gulp": "gulp"
+    "gulp": "gulp",
+    "rmgit": "find . -name '.git' | xargs rm -Rf"
   },
   "author": "",
   "license": "ISC",
