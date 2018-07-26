@@ -25,6 +25,10 @@
     https://github.com/Mot-w/webAppGenerator.git
 ```
 
+### 删除本地git仓库
+
+`find . -name ".git" | xargs rm -Rf`
+
 ####    安装依赖
 
 ```javascript
